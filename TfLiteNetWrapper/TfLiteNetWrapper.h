@@ -3,8 +3,10 @@
 using namespace System;
 
 namespace TfLiteNetWrapper {
-	public ref class Class1
+
+	public ref class ModelWrapper
 	{
-		// TODO: Agregue aquí los métodos de esta clase.
+	public:
+		ModelWrapper(const char* modelFilePath);
 	};
 }
