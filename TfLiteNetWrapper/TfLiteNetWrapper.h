@@ -7,6 +7,6 @@ namespace TfLiteNetWrapper {
 	public ref class ModelWrapper
 	{
 	public:
-		ModelWrapper(const char* modelFilePath);
+		ModelWrapper(System::String^ modelFilePath);
 	};
 }
