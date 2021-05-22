@@ -40,6 +40,9 @@ namespace TfLiteNetWrapper {
 			generic <typename T>
 			void SetValues(array<T>^ values);
 
+			generic <typename T>
+			void GetValues(array<T>^ values);
+
 			int BytesSize;
 
 		private:
@@ -57,8 +60,11 @@ namespace TfLiteNetWrapper {
 
 			void InvokeInterpreter();
 
+			~ModelWrapper();
+
 		private:
 			TfLiteModel* Model;
 			TfLiteInterpreter* Interpreter;
+			TfLiteInterpreterOptions* Options;
 	};
 }
