@@ -37,6 +37,7 @@ namespace TestApplication
 
 				model.InvokeInterpreter();
 
+				// Get output with rigth names
 				Dictionary<string, float[]> result = new Dictionary<string, float[]>();
 				for(int i=0; i<model.OutputTensors.Count; i++)
 				{
@@ -45,6 +46,12 @@ namespace TestApplication
 					float[] output = new float[dim];
 					tensor.GetValues(output);
 					result.Add(outputNames[i], output);
+				}
+
+				// Print output
+				foreach(string key in result.Keys)
+				{
+					Console.WriteLine(key + ": " + string.Join(", ", result[key]));
 				}
 
 				Console.WriteLine("Done");
