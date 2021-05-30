@@ -1,5 +1,5 @@
 
-.NET bindings for Tensorflow 2.4 32 bits. Not all operations are supported, just inference. 64 bits is not supported
+.NET bindings for Tensorflow 2.4 32 bits. Not all operations are supported, just inference. 64 bits is not supported. .NET dll target version is .NET 3.5
 
 ## Use
 See the "TestApplication" project
@@ -27,6 +27,21 @@ foreach (TensorWrapper tensor in model.OutputTensors)
 ```
 
 ## Building
+
+My requirements are to use the bindings in a .NET 3.5 project, so, 
+it's complicated:
+
+* The VS solution in this repo is for VS 2019, and targeting .NET 3.5 is UNSUPPORTED (see 
+  https://developercommunity.visualstudio.com/t/issue-with-ccli-targeting-net-framework-35/1182995
+  ). So, you need VS 2008 (!!!) to be installed, and use it as C++ compiler
+* VS 2008 does not include stdint.h (!!!) so, download it and copy it in 
+  C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\include (see
+  https://stackoverflow.com/questions/126279/c99-stdint-h-header-and-ms-visual-studio)
+
+If you are targeting a .NET version >= 4.0 and you don't have VS 2008, you can use the
+the VS 2019 C++ compiler changing the TfLiteNetWrapper project property "Platform toolset"
+
+Common steps for any .NET target:
 
 * Clone this repo.
 * Clone [Tensorflow repo](https://github.com/tensorflow/tensorflow). Tested with code in master at commit [fed1cf9bc0d107eaa028bc6c375f750404ede5f0](https://github.com/tensorflow/tensorflow/tree/fed1cf9bc0d107eaa028bc6c375f750404ede5f0)
