@@ -6,7 +6,13 @@ See the "TestApplication" project
 
 ```C#
 int nThreads = 2;
-ModelWrapper model = new ModelWrapper(@"path\to\model.tflite", nThreads);
+string modelPath = @"path\to\model.tflite";
+ModelWrapper model = new ModelWrapper(modelPath, nThreads);
+
+// Also, you can read the model from a byte array:
+byte[] content = File.ReadAllBytes(modelPath);
+model = new ModelWrapper(content, nThreads);
+
 foreach(TensorWrapper tensor in model.InputTensors)
 {
 	// Input is expected to be a one dimension array. If input has multiple
@@ -14,7 +20,9 @@ foreach(TensorWrapper tensor in model.InputTensors)
 	int dim = tensor.Dimensions[0];
 	tensor.SetValues(new Int32[dim]);
 }
+
 model.InvokeInterpreter();
+
 foreach (TensorWrapper tensor in model.OutputTensors)
 {
 	// Output is expected to be a one dimension array. If real output has 

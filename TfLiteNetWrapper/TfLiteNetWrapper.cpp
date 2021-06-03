@@ -57,21 +57,37 @@ namespace TfLiteNetWrapper {
 // ---------------------------------------------------------
 
 	ModelWrapper::ModelWrapper(System::String^ modelFilePath, int nThreads) {
-
-		// Create the model
 		Model = NULL;
 		Interpreter = NULL;
 		Options = NULL;
 
+		// Load model from file
 		char* strPath = (char*)Marshal::StringToHGlobalAnsi(modelFilePath).ToPointer();
 		Model = TfLiteModelCreateFromFile(strPath);
 		Marshal::FreeHGlobal((IntPtr)strPath);
 		if (Model == NULL)
 			throw gcnew System::Exception("Model cannot be load");
 
+		SetupModel(nThreads);
+	}
+
+	ModelWrapper::ModelWrapper(array<Byte>^ modelContent, int nThreads) {
+		Model = NULL;
+		Interpreter = NULL;
+		Options = NULL;
+
+		pin_ptr<Byte> modelContentPointer = &modelContent[0];
+		Model = TfLiteModelCreate(modelContentPointer, modelContent->Length);
+		if (Model == NULL)
+			throw gcnew System::Exception("Model cannot be load");
+
+		SetupModel(nThreads);
+	}
+
+	void ModelWrapper::SetupModel(int nThreads) {
 		// Set interpreter options
 		Options = TfLiteInterpreterOptionsCreate();
-		TfLiteInterpreterOptionsSetNumThreads(Options, 2);
+		TfLiteInterpreterOptionsSetNumThreads(Options, nThreads);
 
 		// Create the interpreter
 		Interpreter = TfLiteInterpreterCreate(Model, Options);
@@ -89,7 +105,7 @@ namespace TfLiteNetWrapper {
 		OutputTensors = gcnew List<TensorWrapper^>(nOutputs);
 		for (int i = 0; i < nOutputs; i++) {
 			const TfLiteTensor* outputTensor = TfLiteInterpreterGetOutputTensor(Interpreter, i);
-			OutputTensors->Add(gcnew TensorWrapper((TfLiteTensor *)outputTensor));
+			OutputTensors->Add(gcnew TensorWrapper((TfLiteTensor*)outputTensor));
 		}
 	}
 

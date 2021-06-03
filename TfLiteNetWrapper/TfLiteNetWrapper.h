@@ -54,6 +54,8 @@ namespace TfLiteNetWrapper {
 		public:
 			ModelWrapper(String^ modelFilePath, int nThreads);
 
+			ModelWrapper(array<Byte>^ modelContent, int nThreads);
+
 			List<TensorWrapper^>^ InputTensors;
 
 			List<TensorWrapper^>^ OutputTensors;
@@ -66,5 +68,7 @@ namespace TfLiteNetWrapper {
 			TfLiteModel* Model;
 			TfLiteInterpreter* Interpreter;
 			TfLiteInterpreterOptions* Options;
+
+			void SetupModel(int nThreads);
 	};
 }
