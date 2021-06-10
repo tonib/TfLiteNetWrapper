@@ -27,6 +27,8 @@ namespace TfLiteNetWrapper {
 		kTfLiteUInt32 = 16
 	};
 
+	void TestOpResult(TfLiteStatus status, String^ errorMsg);
+
 	public ref class TensorWrapper {
 		public:
 			String^ Name;
@@ -52,6 +54,7 @@ namespace TfLiteNetWrapper {
 	public ref class ModelWrapper
 	{
 		public:
+
 			ModelWrapper(String^ modelFilePath, int nThreads);
 
 			ModelWrapper(array<Byte>^ modelContent, int nThreads);

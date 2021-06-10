@@ -1,5 +1,8 @@
 
-.NET bindings for Tensorflow 2.4 32 bits. Not all operations are supported, just inference. 64 bits is not supported. .NET dll target version is .NET 3.5
+.NET bindings for Tensorflow 2.4 32 bits. Not all operations are supported, just inference. 
+64 bits is not supported. .NET dll target version is .NET 3.5
+
+This uses the Tensorflow Lite C API.
 
 ## Use
 See the "TestApplication" project
@@ -34,6 +37,8 @@ foreach (TensorWrapper tensor in model.OutputTensors)
 }
 ```
 
+Any call to this wrapper can return a System.Exception if something went wrong. 
+
 ## Building
 
 My requirements are to use the bindings in a .NET 3.5 project, so, 
@@ -47,7 +52,7 @@ it's complicated:
   https://stackoverflow.com/questions/126279/c99-stdint-h-header-and-ms-visual-studio)
 
 If you are targeting a .NET version >= 4.0 and you don't have VS 2008, you can use the
-the VS 2019 C++ compiler changing the TfLiteNetWrapper project property "Platform toolset"
+the VS 2019 C++ compiler changing the TfLiteNetWrapper project property "Platform toolset" (not tested)
 
 Common steps for any .NET target:
 

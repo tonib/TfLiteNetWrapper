@@ -6,6 +6,34 @@ using namespace System::Runtime::InteropServices;
 
 namespace TfLiteNetWrapper {
 
+	void TestOpResult(TfLiteStatus status, String^ errorMsg) 
+	{
+		if (status == kTfLiteOk)
+			return;
+
+		String^ txtStatus;
+		switch (status)
+		{
+		case kTfLiteOk:
+			txtStatus = "kTfLiteOk";
+			break;
+		case kTfLiteError:
+			txtStatus = "kTfLiteError";
+			break;
+		case kTfLiteDelegateError:
+			txtStatus = "kTfLiteDelegateError";
+			break;
+		case kTfLiteApplicationError:
+			txtStatus = "kTfLiteApplicationError";
+			break;
+		default:
+			txtStatus = "Unknown";
+			break;
+		}
+
+		throw gcnew System::Exception(errorMsg + ": " + txtStatus);
+	}
+
 	TensorWrapper::TensorWrapper(TfLiteTensor* tensor) {
 		Tensor = tensor;
 
@@ -34,8 +62,8 @@ namespace TfLiteNetWrapper {
 			return;
 		}
 
-		pin_ptr<T> valuesPtr = &values[0];
-		TfLiteTensorCopyFromBuffer(Tensor, valuesPtr, BytesSize);
+		pin_ptr<T> valuesPtr = &values[values->GetLowerBound(0)];
+		TestOpResult(TfLiteTensorCopyFromBuffer(Tensor, valuesPtr, BytesSize), "Error calling TfLiteTensorCopyFromBuffer");
 	}
 
 	generic <typename T>
@@ -49,8 +77,8 @@ namespace TfLiteNetWrapper {
 			return;
 		}
 
-		pin_ptr<T> valuesPtr = &values[0];
-		TfLiteTensorCopyToBuffer(Tensor, valuesPtr, BytesSize);
+		pin_ptr<T> valuesPtr = &values[values->GetLowerBound(0)];
+		TestOpResult(TfLiteTensorCopyToBuffer(Tensor, valuesPtr, BytesSize), "Error calling TfLiteTensorCopyToBuffer");
 	}
 
 // ---------------------------------------------------------
@@ -76,7 +104,7 @@ namespace TfLiteNetWrapper {
 		Interpreter = NULL;
 		Options = NULL;
 
-		pin_ptr<Byte> modelContentPointer = &modelContent[0];
+		pin_ptr<Byte> modelContentPointer = &modelContent[modelContent->GetLowerBound(0)];
 		Model = TfLiteModelCreate(modelContentPointer, modelContent->Length);
 		if (Model == NULL)
 			throw gcnew System::Exception("Model cannot be load");
@@ -91,7 +119,7 @@ namespace TfLiteNetWrapper {
 
 		// Create the interpreter
 		Interpreter = TfLiteInterpreterCreate(Model, Options);
-		TfLiteInterpreterAllocateTensors(Interpreter);
+		TestOpResult(TfLiteInterpreterAllocateTensors(Interpreter), "Error calling TfLiteInterpreterAllocateTensors");
 
 		// Populate tensors information
 		int32_t nInputs = TfLiteInterpreterGetInputTensorCount(Interpreter);
@@ -110,7 +138,7 @@ namespace TfLiteNetWrapper {
 	}
 
 	void ModelWrapper::InvokeInterpreter() {
-		TfLiteInterpreterInvoke(Interpreter);
+		TestOpResult(TfLiteInterpreterInvoke(Interpreter), "Error calling InvokeInterpreter");
 	}
 
 	ModelWrapper::~ModelWrapper() {
