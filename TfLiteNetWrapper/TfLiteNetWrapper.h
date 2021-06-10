@@ -72,6 +72,13 @@ namespace TfLiteNetWrapper {
 			TfLiteInterpreter* Interpreter;
 			TfLiteInterpreterOptions* Options;
 
+			/// <summary>
+			/// Model content buffer. If model is created from a file path, this will be NULL.
+			/// If model is created from a byte[] model content, this keeps the model content, as TF Lite does not
+			/// get the buffer ownership.
+			/// </summary>
+			unsigned char* ModelContent;
+
 			void SetupModel(int nThreads);
 	};
 }

@@ -88,6 +88,7 @@ namespace TfLiteNetWrapper {
 		Model = NULL;
 		Interpreter = NULL;
 		Options = NULL;
+		ModelContent = NULL;
 
 		// Load model from file
 		char* strPath = (char*)Marshal::StringToHGlobalAnsi(modelFilePath).ToPointer();
@@ -104,8 +105,15 @@ namespace TfLiteNetWrapper {
 		Interpreter = NULL;
 		Options = NULL;
 
+		// Fixed pointer to managed model content
 		pin_ptr<Byte> modelContentPointer = &modelContent[modelContent->GetLowerBound(0)];
-		Model = TfLiteModelCreate(modelContentPointer, modelContent->Length);
+
+		// TfLiteModelCreate does NOT DO a copy of the model content passed as model_data parameter: It expects that
+		// caller keeps the buffer alive (see https://github.com/tensorflow/tensorflow/issues/39253#issuecomment-628418012)
+		ModelContent = new unsigned char[modelContent->Length];
+		memcpy(ModelContent, modelContentPointer, modelContent->Length);
+
+		Model = TfLiteModelCreate(ModelContent, modelContent->Length);
 		if (Model == NULL)
 			throw gcnew System::Exception("Model cannot be load");
 
@@ -157,6 +165,12 @@ namespace TfLiteNetWrapper {
 		if (Model != NULL) {
 			TfLiteModelDelete(Model);
 			Model = NULL;
+		}
+
+		// Dispose model content buffer if it was used
+		if (ModelContent != NULL) {
+			delete[] ModelContent;
+			ModelContent = NULL;
 		}
 	}
 
