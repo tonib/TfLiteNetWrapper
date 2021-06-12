@@ -7,20 +7,19 @@ namespace TestApplication
 {
 	class Program
 	{
-
-		const string MODEL_PATH = @"D:\kbases\subversion\TfLiteNetWrapper\TfLiteNetWrapper\TestApplication\model.tflite";
-
 		const int N_THREADS = 2;
 
 		static HashSet<string> SeqColumns;
 
 		static List<string> OutputNames;
 
+		static string ModelPath;
+
 		static private void TestModel(ModelWrapper model)
 		{
 			foreach (TensorWrapper tensor in model.InputTensors)
 			{
-				int dim = tensor.Dimensions[0];
+				int dim = tensor.Dimensions.Count > 0 ? tensor.Dimensions[0] : 1;
 				Int32[] input = new Int32[dim];
 				for (int i = 0; i < dim; i++)
 					input[i] = -1;
@@ -51,15 +50,28 @@ namespace TestApplication
 			Console.WriteLine("Done");
 		}
 
-		static void SetupColumns()
+		static void SetupGptModel()
 		{
 			string[] sequenceInputs = {
 					"wordType","keywordIdx","kbObjectTypeIdx","dataTypeIdx","dataTypeExtTypeHash","isCollection","lengthBucket","decimalsBucket","textHash0","textHash1",
 					"textHash2","textHash3","controlType" };
-			SeqColumns = new HashSet<string>(sequenceInputs);
-
 			string[] outputNamesOriginal = { "isCollection", "lengthBucket", "decimalsBucket", "outputTypeIdx", "outputExtTypeHash", "textHash0", "textHash1", "textHash2",
 					"textHash3", "isControl" };
+			ModelPath = "model-gpt.tflite";
+			SetupModelColumnsColumns(sequenceInputs, outputNamesOriginal);
+		}
+
+		static void SetupRnnModel()
+		{
+			string[] sequenceInputs = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2", "ControlType" };
+			string[] outputNamesOriginal = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2" };
+			ModelPath = "model-rnn.tflite";
+			SetupModelColumnsColumns(sequenceInputs, outputNamesOriginal);
+		}
+
+		static void SetupModelColumnsColumns(string[] sequenceInputs, string[] outputNamesOriginal)
+		{
+			SeqColumns = new HashSet<string>(sequenceInputs);
 			// Output names for TF lite are wrong. They keep a pattern: Order is the same as the original names sorted alphabetically:
 			List<string> outputNames = new List<string>(outputNamesOriginal);
 			outputNames.Sort();
@@ -68,13 +80,13 @@ namespace TestApplication
 
 		static void TestFileModel()
 		{
-			ModelWrapper model = new ModelWrapper(MODEL_PATH, N_THREADS);
+			ModelWrapper model = new ModelWrapper(ModelPath, N_THREADS);
 			TestModel(model);
 		}
 
 		static void TestContentModel()
 		{
-			byte[] content = File.ReadAllBytes(MODEL_PATH);
+			byte[] content = File.ReadAllBytes(ModelPath);
 			ModelWrapper model = new ModelWrapper(content, N_THREADS);
 			TestModel(model);
 		}
@@ -83,7 +95,13 @@ namespace TestApplication
 		{
 			try
 			{
-				SetupColumns();
+				// Test GPT
+				SetupGptModel();
+				TestFileModel();
+				TestContentModel();
+
+				// Test RNN
+				SetupRnnModel();
 				TestFileModel();
 				TestContentModel();
 			}

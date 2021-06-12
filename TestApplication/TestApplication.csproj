@@ -17,4 +17,13 @@
     <ProjectReference Include="..\TfLiteNetWrapper\TfLiteNetWrapper.vcxproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="model-gpt.tflite">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="model-rnn.tflite">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
