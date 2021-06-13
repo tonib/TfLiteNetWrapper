@@ -40,7 +40,8 @@ foreach(TensorWrapper tensor in model.InputTensors)
 {
     // Input is expected to be a one dimension array. If input has multiple
     // dimensions, all dimensions must to be combined in a single array
-    int dim = tensor.Dimensions[0];
+    // If input/output is scalar (tensor.Dimensions.Count), use an array with size 1
+    int dim = tensor.Dimensions.Count > 0 ? tensor.Dimensions[0] : 1;
     tensor.SetValues(new Int32[dim]);
 }
 
@@ -50,10 +51,11 @@ foreach (TensorWrapper tensor in model.OutputTensors)
 {
 	// Output is expected to be a one dimension array. If real output has 
 	// multiple dimensions, you must to reshape the returned array
-	int dim = tensor.Dimensions[0];
-	float[] output = new float[dim];
-	tensor.GetValues(output);
-	Console.WriteLine(tensor.Name + ": " + string.Join(", ", output));
+	// If input/output is scalar (tensor.Dimensions.Count), use an array with size 1
+    int dim = tensor.Dimensions.Count > 0 ? tensor.Dimensions[0] : 1;
+    float[] output = new float[dim];
+    tensor.GetValues(output);
+    Console.WriteLine(tensor.Name + ": " + string.Join(", ", output));
 }
 ```
 
