@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "TfLiteNetWrapper.h"
 //#using <mscorlib.dll>
+#include <stdio.h>
+#include <stdlib.h>
 
 using namespace System::Runtime::InteropServices;
 
@@ -84,6 +86,26 @@ namespace TfLiteNetWrapper {
 // ---------------------------------------------------------
 // ---------------------------------------------------------
 
+	/// <summary>
+	/// Callback to report TF Lite errors
+	/// </summary>
+	/// <param name="user_data">Will be null</param>
+	/// <param name="format">C error format</param>
+	/// <param name="args">Message arguments</param>
+	void ReportErrorsCallback(void* user_data, const char* format, va_list args) {
+		if (ModelWrapper::ReportErrorsToConsole) {
+			vprintf_s(format, args);
+			printf_s("\n");
+		}
+
+		if (ModelWrapper::ErrorReporter != nullptr) {
+			// Call delegate
+			char buffer[1024 * 16];
+			_vsnprintf_s(buffer, 1024 * 16, format, args);
+			ModelWrapper::ErrorReporter(gcnew String(buffer));
+		}
+	}
+
 	ModelWrapper::ModelWrapper(System::String^ modelFilePath, int nThreads) {
 		Model = NULL;
 		Interpreter = NULL;
@@ -123,6 +145,7 @@ namespace TfLiteNetWrapper {
 	void ModelWrapper::SetupModel(int nThreads) {
 		// Set interpreter options
 		Options = TfLiteInterpreterOptionsCreate();
+		TfLiteInterpreterOptionsSetErrorReporter(Options, ReportErrorsCallback, NULL);
 		TfLiteInterpreterOptionsSetNumThreads(Options, nThreads);
 
 		// Create the interpreter

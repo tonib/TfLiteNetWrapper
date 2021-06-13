@@ -91,10 +91,19 @@ namespace TestApplication
 			TestModel(model);
 		}
 
+		static void ReportError(string errorMsg)
+		{
+			Console.WriteLine("ReportError: " + errorMsg);
+		}
+
 		static void Main(string[] args)
 		{
 			try
 			{
+				// Set delegate to report errors:
+				ModelWrapper.ReportErrorsToConsole = false;
+				ModelWrapper.ErrorReporter = ReportError;
+
 				// Test GPT
 				SetupGptModel();
 				TestFileModel();
@@ -102,8 +111,17 @@ namespace TestApplication
 
 				// Test RNN
 				SetupRnnModel();
-				TestFileModel();
-				TestContentModel();
+				// It's expected failure for this (Flex unsupported)
+				try
+				{
+					TestFileModel();
+				}
+				catch{ }
+				try
+				{
+					TestContentModel();
+				}
+				catch { }
 			}
 			catch(Exception ex)
 			{

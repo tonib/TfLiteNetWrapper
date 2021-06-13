@@ -51,6 +51,11 @@ namespace TfLiteNetWrapper {
 			TfLiteTensor* Tensor;
 	};
 
+	/// <summary>
+	/// Delegate definition to handle (print) Tensorflow Lite error messages
+	/// </summary>
+	public delegate void ErrorReporterCallBack(String^ errorMsg);
+
 	public ref class ModelWrapper
 	{
 		public:
@@ -66,6 +71,16 @@ namespace TfLiteNetWrapper {
 			void InvokeInterpreter();
 
 			~ModelWrapper();
+
+			/// <summary>
+			/// Delegate to handle (print) Tensorflow Lite error messages. If null, no errors will  be reported 
+			/// </summary>
+			static ErrorReporterCallBack^ ErrorReporter = nullptr;
+
+			/// <summary>
+			/// Should we print TF Lite error messages to the console?
+			/// </summary>
+			static bool ReportErrorsToConsole = true;
 
 		private:
 			TfLiteModel* Model;
