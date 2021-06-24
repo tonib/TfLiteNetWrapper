@@ -15,7 +15,7 @@ namespace TestApplication
 
 		static string ModelPath;
 
-		static private void TestModel(ModelWrapper model)
+		static private Dictionary<string, float[]> RunPrediction(ModelWrapper model)
 		{
 			foreach (TensorWrapper tensor in model.InputTensors)
 			{
@@ -41,6 +41,17 @@ namespace TestApplication
 				result.Add(OutputNames[i], output);
 			}
 
+			return result;
+		}
+		static private void TestModel(ModelWrapper model)
+		{
+
+			// Test performance:
+			/*for (int i = 0; i < 1000; i++)
+				RunPrediction(model);*/
+
+			Dictionary<string, float[]> result = RunPrediction(model);
+
 			// Print output
 			foreach (string key in result.Keys)
 			{
@@ -50,27 +61,11 @@ namespace TestApplication
 			Console.WriteLine("Done");
 		}
 
-		static void SetupGptModel()
-		{
-			string[] sequenceInputs = {
-					"wordType","keywordIdx","kbObjectTypeIdx","dataTypeIdx","dataTypeExtTypeHash","isCollection","lengthBucket","decimalsBucket","textHash0","textHash1",
-					"textHash2","textHash3","controlType" };
-			string[] outputNamesOriginal = { "isCollection", "lengthBucket", "decimalsBucket", "outputTypeIdx", "outputExtTypeHash", "textHash0", "textHash1", "textHash2",
-					"textHash3", "isControl" };
-			ModelPath = "model-gpt.tflite";
-			SetupModelColumnsColumns(sequenceInputs, outputNamesOriginal);
-		}
-
-		static void SetupRnnModel()
+		static void SetupModelColumnsColumns()
 		{
 			string[] sequenceInputs = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2", "ControlType" };
 			string[] outputNamesOriginal = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2" };
-			ModelPath = "model-rnn.tflite";
-			SetupModelColumnsColumns(sequenceInputs, outputNamesOriginal);
-		}
 
-		static void SetupModelColumnsColumns(string[] sequenceInputs, string[] outputNamesOriginal)
-		{
 			SeqColumns = new HashSet<string>(sequenceInputs);
 			// Output names for TF lite are wrong. They keep a pattern: Order is the same as the original names sorted alphabetically:
 			List<string> outputNames = new List<string>(outputNamesOriginal);
@@ -108,13 +103,15 @@ namespace TestApplication
 				ModelWrapper.ReportErrorsToConsole = false;
 				ModelWrapper.ErrorReporter = ReportError;
 
+				SetupModelColumnsColumns();
+
 				// Test GPT
-				SetupGptModel();
+				ModelPath = "model-gpt.tflite";
 				TestFileModel();
 				TestContentModel();
 
 				// Test RNN
-				SetupRnnModel();
+				ModelPath = "model-rnn.tflite";
 				// It's expected failure for this (Flex unsupported)
 				try
 				{
