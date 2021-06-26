@@ -1,4 +1,28 @@
-﻿using System;
+﻿/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+/*
+Based on file tensorflow\lite\experimental\examples\unity\TensorFlowLitePlugin\Assets\TensorFlowLite\SDK\Scripts\Interpreter.cs in TF source.
+MODIFIED to:
+- Fix a possible memory error creating the model
+- Changed cases and names (more C# standard?)
+- Support for TF Lite logging
+- Load model from file
+*/
+
+using System;
 using System.Runtime.InteropServices;
 using System.Linq;
 
@@ -15,45 +39,61 @@ namespace TfLiteNetWrapper
     /// </summary>
     public class Interpreter : IDisposable
     {
+        /// <summary>
+        /// Delegate to log TF Lite messages
+        /// </summary>
+        /// <param name="logMessage">Message to log</param>
         public delegate void LogCallbackDelegate(string logMessage);
 
+        /// <summary>
+        /// Callback to log TF Lite messages. Null if there is no callback
+        /// </summary>
         private LogCallbackDelegate LogCallback;
 
+        /// <summary>
+        /// Interpreter options
+        /// </summary>
         public struct Options : IEquatable<Options>
         {
             /// <summary>
             /// The number of CPU threads to use for the interpreter.
             /// </summary>
-            public int threads;
+            public int Threads;
 
+            /// <summary>
+            /// Callback to log TF Lite messages. Null if there is no callback
+            /// </summary>
             public LogCallbackDelegate LogCallback;
 
             public bool Equals(Options other)
             {
-                return threads == other.threads;
+                return Threads == other.Threads && LogCallback == other.LogCallback;
             }
         }
 
+        /// <summary>
+        /// Input / output tensor information
+        /// </summary>
         public struct TensorInfo
         {
-            public string name { get; internal set; }
-            public DataType type { get; internal set; }
-            public int[] dimensions { get; internal set; }
-            public QuantizationParams quantizationParams { get; internal set; }
+            public string Name { get; internal set; }
+            public DataType Type { get; internal set; }
+            public int[] Dimensions { get; internal set; }
+            public QuantizationParams QuantizationParams { get; internal set; }
 
             public override string ToString()
             {
                 return string.Format("name: {0}, type: {1}, dimensions: {2}, quantizationParams: {3}",
-                    name,
-                    type,
-                    "[" + string.Join(",", dimensions.Select(d => d.ToString()).ToArray()) + "]",
-                    "{" + quantizationParams + "}");
+                    Name,
+                    Type,
+                    "[" + string.Join(",", Dimensions.Select(d => d.ToString()).ToArray()) + "]",
+                    "{" + QuantizationParams + "}");
             }
         }
 
-        private TfLiteModel model = IntPtr.Zero;
-        private TfLiteInterpreter interpreter = IntPtr.Zero;
-        private TfLiteInterpreterOptions options = IntPtr.Zero;
+        private TfLiteModel Model = IntPtr.Zero;
+        private TfLiteInterpreter ModelInterpreter = IntPtr.Zero;
+        private TfLiteInterpreterOptions InterpreterOptions = IntPtr.Zero;
 
         /// <summary>
         /// Copy of model content in unmanaged memory. Only used if model was created from a byte[] buffer
@@ -76,8 +116,8 @@ namespace TfLiteNetWrapper
             ModelBuffer = Marshal.AllocHGlobal(bufferSize);
             Marshal.Copy(modelData, 0 , ModelBuffer, modelData.Length);
 
-            model = TfLiteModelCreate(ModelBuffer, bufferSize);
-            if (model == IntPtr.Zero)
+            Model = TfLiteModelCreate(ModelBuffer, bufferSize);
+            if (Model == IntPtr.Zero)
                 throw new Exception("Failed to create TensorFlowLite Model");
 
             Setup(options);
@@ -85,8 +125,8 @@ namespace TfLiteNetWrapper
 
         public Interpreter(string modelFilePath, Options options = default(Options))
         {
-            model = TfLiteModelCreateFromFile(modelFilePath);
-            if (model == IntPtr.Zero) throw new Exception("Failed to create TensorFlowLite Model");
+            Model = TfLiteModelCreateFromFile(modelFilePath);
+            if (Model == IntPtr.Zero) throw new Exception("Failed to create TensorFlowLite Model");
 
             Setup(options);
         }
@@ -95,27 +135,27 @@ namespace TfLiteNetWrapper
         {
             if (!options.Equals(default(Options)))
             {
-                this.options = TfLiteInterpreterOptionsCreate();
-                TfLiteInterpreterOptionsSetNumThreads(this.options, options.threads);
+                this.InterpreterOptions = TfLiteInterpreterOptionsCreate();
+                TfLiteInterpreterOptionsSetNumThreads(this.InterpreterOptions, options.Threads);
                 if (options.LogCallback != null)
                 {
                     LogCallback = options.LogCallback;
-                    TfLiteInterpreterOptionsSetErrorReporter(this.options, this.TfLogCallback, IntPtr.Zero);
+                    TfLiteInterpreterOptionsSetErrorReporter(this.InterpreterOptions, this.TfLogCallback, IntPtr.Zero);
                 }
             }
 
-            interpreter = TfLiteInterpreterCreate(model, this.options);
-            if (interpreter == IntPtr.Zero) throw new Exception("Failed to create TensorFlowLite Interpreter");
+            ModelInterpreter = TfLiteInterpreterCreate(Model, this.InterpreterOptions);
+            if (ModelInterpreter == IntPtr.Zero) throw new Exception("Failed to create TensorFlowLite Interpreter");
         }
 
         public void Dispose()
         {
-            if (interpreter != IntPtr.Zero) TfLiteInterpreterDelete(interpreter);
-            interpreter = IntPtr.Zero;
-            if (model != IntPtr.Zero) TfLiteModelDelete(model);
-            model = IntPtr.Zero;
-            if (options != IntPtr.Zero) TfLiteInterpreterOptionsDelete(options);
-            options = IntPtr.Zero;
+            if (ModelInterpreter != IntPtr.Zero) TfLiteInterpreterDelete(ModelInterpreter);
+            ModelInterpreter = IntPtr.Zero;
+            if (Model != IntPtr.Zero) TfLiteModelDelete(Model);
+            Model = IntPtr.Zero;
+            if (InterpreterOptions != IntPtr.Zero) TfLiteInterpreterOptionsDelete(InterpreterOptions);
+            InterpreterOptions = IntPtr.Zero;
 
             if(ModelBuffer != IntPtr.Zero)
             {
@@ -126,19 +166,19 @@ namespace TfLiteNetWrapper
 
         public void Invoke()
         {
-            ThrowIfError(TfLiteInterpreterInvoke(interpreter));
+            ThrowIfError(TfLiteInterpreterInvoke(ModelInterpreter));
         }
 
         public int GetInputTensorCount()
         {
-            return TfLiteInterpreterGetInputTensorCount(interpreter);
+            return TfLiteInterpreterGetInputTensorCount(ModelInterpreter);
         }
 
         public void SetInputTensorData(int inputTensorIndex, Array inputTensorData)
         {
             GCHandle tensorDataHandle = GCHandle.Alloc(inputTensorData, GCHandleType.Pinned);
             IntPtr tensorDataPtr = tensorDataHandle.AddrOfPinnedObject();
-            TfLiteTensor tensor = TfLiteInterpreterGetInputTensor(interpreter, inputTensorIndex);
+            TfLiteTensor tensor = TfLiteInterpreterGetInputTensor(ModelInterpreter, inputTensorIndex);
             ThrowIfError(TfLiteTensorCopyFromBuffer(
                 tensor, tensorDataPtr, Buffer.ByteLength(inputTensorData)));
         }
@@ -146,37 +186,37 @@ namespace TfLiteNetWrapper
         public void ResizeInputTensor(int inputTensorIndex, int[] inputTensorShape)
         {
             ThrowIfError(TfLiteInterpreterResizeInputTensor(
-                interpreter, inputTensorIndex, inputTensorShape, inputTensorShape.Length));
+                ModelInterpreter, inputTensorIndex, inputTensorShape, inputTensorShape.Length));
         }
 
         public void AllocateTensors()
         {
-            ThrowIfError(TfLiteInterpreterAllocateTensors(interpreter));
+            ThrowIfError(TfLiteInterpreterAllocateTensors(ModelInterpreter));
         }
 
         public int GetOutputTensorCount()
         {
-            return TfLiteInterpreterGetOutputTensorCount(interpreter);
+            return TfLiteInterpreterGetOutputTensorCount(ModelInterpreter);
         }
 
         public void GetOutputTensorData(int outputTensorIndex, Array outputTensorData)
         {
             GCHandle tensorDataHandle = GCHandle.Alloc(outputTensorData, GCHandleType.Pinned);
             IntPtr tensorDataPtr = tensorDataHandle.AddrOfPinnedObject();
-            TfLiteTensor tensor = TfLiteInterpreterGetOutputTensor(interpreter, outputTensorIndex);
+            TfLiteTensor tensor = TfLiteInterpreterGetOutputTensor(ModelInterpreter, outputTensorIndex);
             ThrowIfError(TfLiteTensorCopyToBuffer(
                 tensor, tensorDataPtr, Buffer.ByteLength(outputTensorData)));
         }
 
         public TensorInfo GetInputTensorInfo(int index)
         {
-            TfLiteTensor tensor = TfLiteInterpreterGetInputTensor(interpreter, index);
+            TfLiteTensor tensor = TfLiteInterpreterGetInputTensor(ModelInterpreter, index);
             return GetTensorInfo(tensor);
         }
 
         public TensorInfo GetOutputTensorInfo(int index)
         {
-            TfLiteTensor tensor = TfLiteInterpreterGetOutputTensor(interpreter, index);
+            TfLiteTensor tensor = TfLiteInterpreterGetOutputTensor(ModelInterpreter, index);
             return GetTensorInfo(tensor);
         }
 
@@ -204,10 +244,10 @@ namespace TfLiteNetWrapper
             }
             return new TensorInfo()
             {
-                name = GetTensorName(tensor),
-                type = TfLiteTensorType(tensor),
-                dimensions = dimensions,
-                quantizationParams = TfLiteTensorQuantizationParams(tensor),
+                Name = GetTensorName(tensor),
+                Type = TfLiteTensorType(tensor),
+                Dimensions = dimensions,
+                QuantizationParams = TfLiteTensorQuantizationParams(tensor),
             };
         }
 

@@ -32,11 +32,11 @@ namespace TestApplication
             {
                 Interpreter.TensorInfo inputTensor = interpreter.GetInputTensorInfo(inputIdx);
                 
-                int dim = inputTensor.dimensions.Length > 0 ? inputTensor.dimensions[0] : 1;
+                int dim = inputTensor.Dimensions.Length > 0 ? inputTensor.Dimensions[0] : 1;
                 Int32[] input = new Int32[dim];
                 for (int i = 0; i < dim; i++)
                     input[i] = -1;
-                if (!SeqColumns.Contains(inputTensor.name))
+                if (!SeqColumns.Contains(inputTensor.Name))
                     input[0] = 0;
                 interpreter.SetInputTensorData(inputIdx, input);
             }
@@ -48,7 +48,7 @@ namespace TestApplication
             for(int outputIdx=0; outputIdx < interpreter.GetOutputTensorCount(); outputIdx++)
             {
                 Interpreter.TensorInfo outputTensor = interpreter.GetOutputTensorInfo(outputIdx);
-                int dim = outputTensor.dimensions[0];
+                int dim = outputTensor.Dimensions[0];
                 float[] output = new float[dim];
                 interpreter.GetOutputTensorData(outputIdx, output);
                 result.Add(OutputNames[outputIdx], output);
@@ -74,7 +74,7 @@ namespace TestApplication
         static void TestModel(string fileModelPath, bool loadFromBuffer)
         {
             Interpreter.Options options = new Interpreter.Options();
-            options.threads = N_THREADS;
+            options.Threads = N_THREADS;
             options.LogCallback = LogCallback;
 
             Interpreter interpreter;
@@ -105,7 +105,7 @@ namespace TestApplication
             TestModel("model-gpt.tflite", true);
             TestModel("model-gpt.tflite", false);
 
-            // This is expected to fail
+            // This is expected to fail (no Flex delegate in TF Lite C API)
             try { TestModel("model-rnn.tflite", true); } catch { }
             try { TestModel("model-rnn.tflite", false); } catch { }
 
