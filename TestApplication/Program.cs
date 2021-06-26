@@ -1,133 +1,115 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using TfLiteNetWrapper;
 
 namespace TestApplication
 {
-	class Program
-	{
-		const int N_THREADS = 2;
+    class Program
+    {
+        const int N_THREADS = 2;
 
-		static HashSet<string> SeqColumns;
+        static HashSet<string> SeqColumns;
+        static List<string> OutputNames;
 
-		static List<string> OutputNames;
+        static void SetupModelColumnsColumns()
+        {
+            string[] sequenceInputs = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2", "ControlType" };
+            string[] outputNamesOriginal = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2" };
 
-		static string ModelPath;
+            SeqColumns = new HashSet<string>(sequenceInputs);
+            // Output names for TF lite are wrong. They keep a pattern: Order is the same as the original names sorted alphabetically:
+            List<string> outputNames = new List<string>(outputNamesOriginal);
+            outputNames.Sort();
+            OutputNames = outputNames;
+        }
 
-		static private Dictionary<string, float[]> RunPrediction(ModelWrapper model)
-		{
-			foreach (TensorWrapper tensor in model.InputTensors)
-			{
-				int dim = tensor.Dimensions.Count > 0 ? tensor.Dimensions[0] : 1;
-				Int32[] input = new Int32[dim];
-				for (int i = 0; i < dim; i++)
-					input[i] = -1;
-				if (!SeqColumns.Contains(tensor.Name))
-					input[0] = 0;
-				tensor.SetValues(input);
-			}
+        static private Dictionary<string, float[]> RunPrediction(Interpreter interpreter)
+        {
+            for(int inputIdx=0; inputIdx < interpreter.GetInputTensorCount(); inputIdx++)
+            {
+                Interpreter.TensorInfo inputTensor = interpreter.GetInputTensorInfo(inputIdx);
+                
+                int dim = inputTensor.dimensions.Length > 0 ? inputTensor.dimensions[0] : 1;
+                Int32[] input = new Int32[dim];
+                for (int i = 0; i < dim; i++)
+                    input[i] = -1;
+                if (!SeqColumns.Contains(inputTensor.name))
+                    input[0] = 0;
+                interpreter.SetInputTensorData(inputIdx, input);
+            }
 
-			model.InvokeInterpreter();
+            interpreter.Invoke();
 
-			// Get output with rigth names
-			Dictionary<string, float[]> result = new Dictionary<string, float[]>();
-			for (int i = 0; i < model.OutputTensors.Count; i++)
-			{
-				TensorWrapper tensor = model.OutputTensors[i];
-				int dim = tensor.Dimensions[0];
-				float[] output = new float[dim];
-				tensor.GetValues(output);
-				result.Add(OutputNames[i], output);
-			}
+            // Get output with rigth names
+            Dictionary<string, float[]> result = new Dictionary<string, float[]>();
+            for(int outputIdx=0; outputIdx < interpreter.GetOutputTensorCount(); outputIdx++)
+            {
+                Interpreter.TensorInfo outputTensor = interpreter.GetOutputTensorInfo(outputIdx);
+                int dim = outputTensor.dimensions[0];
+                float[] output = new float[dim];
+                interpreter.GetOutputTensorData(outputIdx, output);
+                result.Add(OutputNames[outputIdx], output);
+            }
 
-			return result;
-		}
-		static private void TestModel(ModelWrapper model)
-		{
+            return result;
+        }
 
-			// Test performance:
-			/*for (int i = 0; i < 1000; i++)
-				RunPrediction(model);*/
+        static void PrintResults(Dictionary<string, float[]> result)
+        {
+            // Print output
+            foreach (string key in result.Keys)
+            {
+                Console.WriteLine(key + ": " + string.Join(", ", result[key].Select(x => x.ToString()).ToArray()));
+            }
+        }
 
-			Dictionary<string, float[]> result = RunPrediction(model);
+        static public void LogCallback(string message)
+        {
+            Console.WriteLine("[TFLOG]: " + message);
+        }
 
-			// Print output
-			foreach (string key in result.Keys)
-			{
-				Console.WriteLine(key + ": " + string.Join(", ", result[key]));
-			}
+        static void TestModel(string fileModelPath, bool loadFromBuffer)
+        {
+            Interpreter.Options options = new Interpreter.Options();
+            options.threads = N_THREADS;
+            options.LogCallback = LogCallback;
 
-			Console.WriteLine("Done");
-		}
+            Interpreter interpreter;
+            if (loadFromBuffer)
+            {
+                byte[] content = File.ReadAllBytes(fileModelPath);
+                interpreter = new Interpreter(content, options);
+            }
+            else
+                interpreter = new Interpreter(fileModelPath, options);
 
-		static void SetupModelColumnsColumns()
-		{
-			string[] sequenceInputs = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2", "ControlType" };
-			string[] outputNamesOriginal = { "Type", "DataType", "Collection", "Length", "Decimals", "NameHash0", "NameHash1", "NameHash2" };
+            interpreter.AllocateTensors();
 
-			SeqColumns = new HashSet<string>(sequenceInputs);
-			// Output names for TF lite are wrong. They keep a pattern: Order is the same as the original names sorted alphabetically:
-			List<string> outputNames = new List<string>(outputNamesOriginal);
-			outputNames.Sort();
-			OutputNames = outputNames;
-		}
+            // Test performance
+            /*for(int i=0; i<1000; i++)
+                RunPrediction(interpreter);*/
 
-		static void TestFileModel()
-		{
-			ModelWrapper model = new ModelWrapper(ModelPath, N_THREADS);
-			TestModel(model);
-		}
+            Dictionary<string, float[]> result = RunPrediction(interpreter);
+            PrintResults(result);
 
-		static void TestContentModel()
-		{
-			byte[] content = File.ReadAllBytes(ModelPath);
-			ModelWrapper model = new ModelWrapper(content, N_THREADS);
-			TestModel(model);
-		}
+            interpreter.Dispose();
+        }
 
-		/// <summary>
-		/// Callback to report TF Lite errors
-		/// </summary>
-		/// <param name="errorMsg">Message error generated by TF Lite</param>
-		static void ReportError(string errorMsg)
-		{
-			Console.WriteLine("ReportError: " + errorMsg);
-		}
+        static void Main(string[] args)
+        {
+            SetupModelColumnsColumns();
 
-		static void Main(string[] args)
-		{
-			try
-			{
-				// Set delegate to report errors:
-				ModelWrapper.ReportErrorsToConsole = false;
-				ModelWrapper.ErrorReporter = ReportError;
+            TestModel("model-gpt.tflite", true);
+            TestModel("model-gpt.tflite", false);
 
-				SetupModelColumnsColumns();
+            // This is expected to fail
+            try { TestModel("model-rnn.tflite", true); } catch { }
+            try { TestModel("model-rnn.tflite", false); } catch { }
 
-				// Test GPT
-				ModelPath = "model-gpt.tflite";
-				TestFileModel();
-				TestContentModel();
-
-				// Test RNN
-				ModelPath = "model-rnn.tflite";
-				// It's expected failure for this (Flex unsupported)
-				try
-				{
-					TestFileModel();
-				}
-				catch{ }
-				try
-				{
-					TestContentModel();
-				}
-				catch { }
-			}
-			catch(Exception ex)
-			{
-				Console.WriteLine(ex.ToString());
-			}
-		}
-	}
+            Console.WriteLine("Done");
+        }
+    }
 }
